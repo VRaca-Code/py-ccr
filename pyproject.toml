@@ -13,6 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+viz = ["matplotlib>=3.8", "seaborn>=0.13"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.9"
