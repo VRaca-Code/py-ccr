@@ -3,10 +3,19 @@
 import plotly.graph_objects as go
 import streamlit as st
 
+from app.term_structure_charts import (
+    discount_factor_chart,
+    forward_curve_chart,
+    forward_slope_chart,
+    hull_white_drift_chart,
+    parameter_comparison_chart,
+)
 from pyccr.dashboard.scenario import (
     DashboardScenarioConfig,
     run_dashboard_scenario,
 )
+from pyccr.dashboard.term_structure import calculate_term_structure_diagnostics
+from pyccr.market.smooth_discount_curve import SmoothDiscountCurve
 
 st.set_page_config(
     page_title="PyCCR | Counterparty Credit Risk & XVA",
@@ -282,13 +291,17 @@ m4.metric(
     f"€{result.first_to_default_xva.net_xva:,.0f}",
 )
 
-exposure_tab, portfolio_tab, xva_tab, sensitivity_tab = st.tabs(
-    [
-        "Exposure profiles",
-        "Portfolio MTM",
-        "Bilateral XVA",
-        "Credit sensitivity",
-    ]
+exposure_tab, portfolio_tab, xva_tab, sensitivity_tab, curve_tab, hull_white_tab = (
+    st.tabs(
+        [
+            "Exposure profiles",
+            "Portfolio MTM",
+            "Bilateral XVA",
+            "Credit sensitivity",
+            "Yield curve & forwards",
+            "Hull–White diagnostics",
+        ]
+    )
 )
 
 with exposure_tab:
@@ -335,6 +348,91 @@ with sensitivity_tab:
     st.caption(
         "Sensitivity grid uses fixed CDS-spread axes. "
         "The sidebar credit spreads determine the headline XVA values."
+    )
+
+
+# The scenario currently uses a flat 3% initial zero curve.
+# Keep this monitoring curve consistent with the scenario runner.
+monitoring_curve = SmoothDiscountCurve(
+    tenors=(0.0, 0.5, 1.0, 1.5, 2.0, 3.0),
+    zero_rates=(0.03,) * 6,
+)
+
+monitoring = calculate_term_structure_diagnostics(
+    monitoring_curve,
+    mean_reversion=config.mean_reversion,
+    volatility=config.volatility,
+)
+
+with curve_tab:
+    st.subheader("Initial discount and forward term structures")
+    st.caption(
+        "The current Monte Carlo scenario uses a flat 3% initial zero curve. "
+        "The forward curve and slope are derived from that same curve; "
+        "they are not independently calibrated market observations."
+    )
+    st.plotly_chart(discount_factor_chart(monitoring), use_container_width=True)
+    st.plotly_chart(forward_curve_chart(monitoring), use_container_width=True)
+    st.plotly_chart(forward_slope_chart(monitoring), use_container_width=True)
+    st.caption(
+        "Forward slope is the maturity derivative of the instantaneous "
+        "forward rate, displayed in basis points per year."
+    )
+
+with hull_white_tab:
+    st.subheader("Hull–White deterministic drift decomposition")
+    st.caption(
+        "Theta(t) = forward slope + mean reversion × instantaneous forward "
+        "+ volatility contribution. These are model-implied diagnostics, "
+        "not calibration residuals."
+    )
+    st.plotly_chart(hull_white_drift_chart(monitoring), use_container_width=True)
+
+    st.subheader("Compare alternative model parameters")
+    comparison_left, comparison_right = st.columns(2)
+
+    with comparison_left:
+        alternative_mean_reversion = st.slider(
+            "Alternative mean reversion",
+            min_value=0.01,
+            max_value=0.30,
+            value=0.15,
+            step=0.01,
+            key="alternative_mean_reversion",
+        )
+
+    with comparison_right:
+        alternative_volatility = st.slider(
+            "Alternative short-rate volatility",
+            min_value=0.001,
+            max_value=0.030,
+            value=0.020,
+            step=0.001,
+            format="%.3f",
+            key="alternative_volatility",
+        )
+
+    alternative_monitoring = calculate_term_structure_diagnostics(
+        monitoring_curve,
+        mean_reversion=float(alternative_mean_reversion),
+        volatility=float(alternative_volatility),
+    )
+
+    st.plotly_chart(
+        parameter_comparison_chart(
+            monitoring,
+            alternative_monitoring,
+            baseline_label="Scenario parameters",
+            alternative_label="Alternative parameters",
+        ),
+        use_container_width=True,
+    )
+    st.caption(
+        "The initial forward curve remains unchanged when Hull–White "
+        "mean reversion or volatility changes. The deterministic drift "
+        "changes. Alternative parameters are diagnostic only: the Monte "
+        "Carlo paths, exposure, and XVA above continue to use the "
+        "submitted sidebar scenario."
     )
 
 st.divider()
