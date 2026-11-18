@@ -253,7 +253,7 @@ with st.sidebar:
         st.form_submit_button(
             "Run scenario",
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
 
 config = DashboardScenarioConfig(
@@ -305,21 +305,21 @@ exposure_tab, portfolio_tab, xva_tab, sensitivity_tab, curve_tab, hull_white_tab
 )
 
 with exposure_tab:
-    st.plotly_chart(exposure_chart(result), use_container_width=True)
+    st.plotly_chart(exposure_chart(result), width="stretch")
     st.caption(
         "ENE is shown as a positive exposure magnitude. "
         "PFE is a cross-sectional Monte Carlo percentile."
     )
 
 with portfolio_tab:
-    st.plotly_chart(trade_chart(result), use_container_width=True)
+    st.plotly_chart(trade_chart(result), width="stretch")
     st.write(
         f"Receiver IRS fixed rate: **{result.swap_fixed_rate:.4%}**"
         f"  |  Payer swaption strike: **{result.swaption_fixed_rate:.4%}**"
     )
 
 with xva_tab:
-    st.plotly_chart(xva_chart(result), use_container_width=True)
+    st.plotly_chart(xva_chart(result), width="stretch")
     st.caption(
         "Net XVA = DVA − CVA. Standalone CVA/DVA use unconditional "
         "default probabilities; FTD uses independent competing hazards."
@@ -342,7 +342,7 @@ with sensitivity_tab:
 
     st.plotly_chart(
         sensitivity_chart(result, metric),
-        use_container_width=True,
+        width="stretch",
     )
 
     st.caption(
@@ -371,9 +371,9 @@ with curve_tab:
         "The forward curve and slope are derived from that same curve; "
         "they are not independently calibrated market observations."
     )
-    st.plotly_chart(discount_factor_chart(monitoring), use_container_width=True)
-    st.plotly_chart(forward_curve_chart(monitoring), use_container_width=True)
-    st.plotly_chart(forward_slope_chart(monitoring), use_container_width=True)
+    st.plotly_chart(discount_factor_chart(monitoring), width="stretch")
+    st.plotly_chart(forward_curve_chart(monitoring), width="stretch")
+    st.plotly_chart(forward_slope_chart(monitoring), width="stretch")
     st.caption(
         "Forward slope is the maturity derivative of the instantaneous "
         "forward rate, displayed in basis points per year."
@@ -386,7 +386,7 @@ with hull_white_tab:
         "+ volatility contribution. These are model-implied diagnostics, "
         "not calibration residuals."
     )
-    st.plotly_chart(hull_white_drift_chart(monitoring), use_container_width=True)
+    st.plotly_chart(hull_white_drift_chart(monitoring), width="stretch")
 
     st.subheader("Compare alternative model parameters")
     comparison_left, comparison_right = st.columns(2)
@@ -425,7 +425,7 @@ with hull_white_tab:
             baseline_label="Scenario parameters",
             alternative_label="Alternative parameters",
         ),
-        use_container_width=True,
+        width="stretch",
     )
     st.caption(
         "The initial forward curve remains unchanged when Hull–White "
