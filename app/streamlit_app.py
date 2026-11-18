@@ -1,8 +1,17 @@
 """Interactive Streamlit dashboard for illustrative PyCCR analytics."""
 
+import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+from scipy.stats import norm
 
+from app.backtesting_charts import (
+    binomial_null_chart,
+    bootstrap_coverage_chart,
+    breach_autocorrelation_chart,
+    breach_timeline_chart,
+    rolling_coverage_chart,
+)
 from app.term_structure_charts import (
     discount_factor_chart,
     forward_curve_chart,
@@ -10,6 +19,11 @@ from app.term_structure_charts import (
     hull_white_drift_chart,
     parameter_comparison_chart,
 )
+from app.xva_stress_panel import render_xva_stress_panel
+from pyccr.backtesting.bootstrap import bootstrap_coverage_interval
+from pyccr.backtesting.christoffersen import christoffersen_coverage_test
+from pyccr.backtesting.coverage import test_coverage
+from pyccr.backtesting.dependence import breach_dependence_diagnostics
 from pyccr.dashboard.scenario import (
     DashboardScenarioConfig,
     run_dashboard_scenario,
@@ -291,17 +305,24 @@ m4.metric(
     f"€{result.first_to_default_xva.net_xva:,.0f}",
 )
 
-exposure_tab, portfolio_tab, xva_tab, sensitivity_tab, curve_tab, hull_white_tab = (
-    st.tabs(
-        [
-            "Exposure profiles",
-            "Portfolio MTM",
-            "Bilateral XVA",
-            "Credit sensitivity",
-            "Yield curve & forwards",
-            "Hull–White diagnostics",
-        ]
-    )
+(
+    exposure_tab,
+    portfolio_tab,
+    xva_tab,
+    sensitivity_tab,
+    curve_tab,
+    hull_white_tab,
+    backtesting_tab,
+) = st.tabs(
+    [
+        "Exposure profiles",
+        "Portfolio MTM",
+        "Bilateral XVA",
+        "Credit sensitivity",
+        "Yield curve & forwards",
+        "Hull–White diagnostics",
+        "Backtesting & Model Validation",
+    ]
 )
 
 with exposure_tab:
@@ -324,6 +345,9 @@ with xva_tab:
         "Net XVA = DVA − CVA. Standalone CVA/DVA use unconditional "
         "default probabilities; FTD uses independent competing hazards."
     )
+
+    st.divider()
+    render_xva_stress_panel(config, result)
 
 with sensitivity_tab:
     metric = st.selectbox(
@@ -434,6 +458,393 @@ with hull_white_tab:
         "Carlo paths, exposure, and XVA above continue to use the "
         "submitted sidebar scenario."
     )
+
+
+with backtesting_tab:
+    st.subheader("Backtesting & Model Validation")
+    st.warning(
+        "SYNTHETIC DEMONSTRATION ONLY — these are generated forecasts "
+        "and observations, not historical market data or evidence of "
+        "Hull–White, FX, or portfolio model accuracy."
+    )
+
+    controls_left, controls_middle, controls_right = st.columns(3)
+
+    with controls_left:
+        bt_factor = st.selectbox(
+            "Backtesting risk factor",
+            options=["EUR short rate", "USD short rate", "EUR/USD FX"],
+            key="bt_factor",
+        )
+        bt_tail = st.selectbox(
+            "Backtesting tail",
+            options=["upper", "lower"],
+            key="bt_tail",
+        )
+
+    with controls_middle:
+        bt_quantile = st.selectbox(
+            "Forecast confidence level",
+            options=[0.95, 0.975, 0.99, 0.995],
+            index=2,
+            format_func=lambda value: f"{value:.1%}",
+            key="bt_quantile",
+        )
+        bt_sample_size = st.selectbox(
+            "Number of synthetic observations",
+            options=[130, 260, 520],
+            index=1,
+            key="bt_sample_size",
+        )
+
+    with controls_right:
+        bt_alternative = st.selectbox(
+            "Binomial test alternative",
+            options=["greater", "less", "two-sided"],
+            key="bt_alternative",
+        )
+        bt_windows = st.multiselect(
+            "Rolling windows (observations)",
+            options=[13, 26, 52, 104],
+            default=[13, 26, 52],
+            key="bt_windows",
+        )
+
+    # Independent, reproducible synthetic illustration.
+    # These are not outputs from the dashboard's risk-neutral
+    # Hull-White/XVA scenario or point-in-time historical forecasts.
+    bt_rng = np.random.default_rng(20261118)
+    bt_index = np.arange(bt_sample_size, dtype=np.float64)
+    bt_location = 0.15 * np.sin(bt_index / 23.0)
+    bt_scale = 0.8 + 0.2 * (1.0 + np.cos(bt_index / 31.0))
+    bt_standardized = bt_rng.standard_normal(bt_sample_size)
+
+    if bt_factor == "EUR short rate":
+        bt_center = 0.025 + 0.002 * bt_location
+        bt_sigma = 0.004 * bt_scale
+    elif bt_factor == "USD short rate":
+        bt_center = 0.035 + 0.003 * bt_location
+        bt_sigma = 0.006 * bt_scale
+    else:
+        bt_center = 1.09 + 0.02 * bt_location
+        bt_sigma = 0.025 * bt_scale
+
+    bt_realized = bt_center + bt_sigma * bt_standardized
+    bt_probability = 1.0 - bt_quantile
+    bt_z = norm.ppf(bt_quantile if bt_tail == "upper" else bt_probability)
+    bt_forecasts = bt_center + bt_sigma * bt_z
+
+    bt_result = test_coverage(
+        bt_realized,
+        bt_forecasts,
+        tail=bt_tail,
+        nominal_probability=bt_probability,
+        significance_level=0.05,
+        alternative=bt_alternative,
+    )
+
+    st.markdown("#### Bootstrap uncertainty")
+
+    bt_bootstrap_left, bt_bootstrap_middle, bt_bootstrap_right = st.columns(3)
+
+    with bt_bootstrap_left:
+        bt_block_length = st.selectbox(
+            "Circular block length (observations)",
+            options=[1, 5, 10, 20],
+            index=2,
+            key="bt_block_length",
+        )
+
+    with bt_bootstrap_middle:
+        bt_resamples = st.selectbox(
+            "Bootstrap resamples",
+            options=[500, 1000, 2000],
+            index=0,
+            key="bt_resamples",
+        )
+
+    with bt_bootstrap_right:
+        bt_ci_level = st.selectbox(
+            "Bootstrap confidence level",
+            options=[0.90, 0.95, 0.99],
+            index=1,
+            format_func=lambda value: f"{value:.0%}",
+            key="bt_ci_level",
+        )
+
+    bt_iid_bootstrap = bootstrap_coverage_interval(
+        bt_result.breaches,
+        method="iid",
+        confidence_level=bt_ci_level,
+        n_resamples=bt_resamples,
+        seed=20261118,
+    )
+    bt_block_bootstrap = bootstrap_coverage_interval(
+        bt_result.breaches,
+        method="circular_block",
+        confidence_level=bt_ci_level,
+        n_resamples=bt_resamples,
+        block_length=bt_block_length,
+        seed=20261118,
+    )
+
+    bt_m1, bt_m2, bt_m3, bt_m4 = st.columns(4)
+    bt_m1.metric("Observed breaches", str(bt_result.n_breaches))
+    bt_m2.metric("Expected breaches", f"{bt_result.expected_breaches:.2f}")
+    bt_m3.metric(
+        "Observed breach frequency",
+        f"{bt_result.observed_frequency:.2%}",
+    )
+    bt_m4.metric("Exact binomial p-value", f"{bt_result.p_value:.4g}")
+
+    st.caption(
+        f"Nominal tail probability: {bt_probability:.2%} | "
+        "Hypothesis-test significance: 5% | "
+        f"Alternative: {bt_alternative} | "
+        f"Reject IID coverage null: {bt_result.reject_null}"
+    )
+
+    if bt_result.expected_breaches < 5:
+        st.info(
+            "Low expected breach count: this sample provides limited "
+            "information about rare-tail coverage. Failure to reject "
+            "does not demonstrate model validity."
+        )
+
+    st.plotly_chart(
+        breach_timeline_chart(bt_realized, bt_forecasts, bt_result),
+        width="stretch",
+    )
+
+    if bt_windows:
+        st.plotly_chart(
+            rolling_coverage_chart(bt_result, windows=tuple(bt_windows)),
+            width="stretch",
+        )
+    else:
+        st.info("Select at least one rolling window to show the chart.")
+
+    st.plotly_chart(
+        binomial_null_chart(bt_result),
+        width="stretch",
+    )
+
+    bt_ci_left, bt_ci_right = st.columns(2)
+
+    bt_ci_left.metric(
+        "IID bootstrap interval",
+        f"{bt_iid_bootstrap.lower_bound:.2%} – {bt_iid_bootstrap.upper_bound:.2%}",
+    )
+    bt_ci_right.metric(
+        "Circular block bootstrap interval",
+        f"{bt_block_bootstrap.lower_bound:.2%} – {bt_block_bootstrap.upper_bound:.2%}",
+    )
+
+    st.plotly_chart(
+        bootstrap_coverage_chart(
+            bt_iid_bootstrap,
+            bt_block_bootstrap,
+            nominal_probability=bt_probability,
+        ),
+        width="stretch",
+    )
+
+    st.caption(
+        f"Percentile confidence level: {bt_ci_level:.0%}. "
+        f"Circular block length: {bt_block_length} observations. "
+        "Dotted interval boundaries show descriptive bootstrap "
+        "uncertainty around the observed breach frequency. "
+        "The black vertical line is the observed frequency; "
+        "the green dashed line is the nominal probability. "
+        "These are not null-calibrated bootstrap hypothesis tests."
+    )
+
+    if bt_result.n_breaches == 0:
+        st.warning(
+            "No breaches were observed. Resampling an all-zero "
+            "breach series produces a zero-width bootstrap interval; "
+            "this does not imply the true breach probability is zero."
+        )
+
+    st.info(
+        "IID bootstrap assumes independent observations. Circular "
+        "block bootstrap preserves local dependence only within "
+        "resampled blocks and requires suitable block-length and "
+        "weak-dependence assumptions. Neither procedure resolves "
+        "overlapping forecast horizons or establishes model validity."
+    )
+
+    st.markdown("#### Breach clustering and serial dependence")
+
+    bt_max_lag = st.selectbox(
+        "Maximum breach autocorrelation lag",
+        options=[1, 5, 10, 20],
+        index=2,
+        key="bt_max_lag",
+    )
+
+    bt_dependence = breach_dependence_diagnostics(
+        bt_result.breaches,
+        max_lag=bt_max_lag,
+    )
+
+    bt_dep_left, bt_dep_middle, bt_dep_right = st.columns(3)
+
+    bt_dep_left.metric(
+        "Consecutive breach pairs",
+        str(bt_dependence.consecutive_breach_pairs),
+    )
+
+    bt_lag_one = bt_dependence.autocorrelations[0]
+    bt_dep_middle.metric(
+        "Lag-1 breach autocorrelation",
+        f"{bt_lag_one:.3f}" if np.isfinite(bt_lag_one) else "Undefined",
+    )
+
+    bt_inflation = bt_dependence.variance_inflation_estimate
+    bt_dep_right.metric(
+        "Descriptive variance inflation",
+        f"{bt_inflation:.3f}" if bt_inflation is not None else "Undefined",
+    )
+
+    st.plotly_chart(
+        breach_autocorrelation_chart(bt_dependence),
+        width="stretch",
+    )
+
+    bt_transitions = bt_dependence.transition_counts
+
+    st.dataframe(
+        {
+            "Previous observation": [
+                "No breach",
+                "Breach",
+            ],
+            "Next: no breach": [
+                int(bt_transitions[0, 0]),
+                int(bt_transitions[1, 0]),
+            ],
+            "Next: breach": [
+                int(bt_transitions[0, 1]),
+                int(bt_transitions[1, 1]),
+            ],
+        },
+        hide_index=True,
+        width="stretch",
+    )
+
+    if bt_result.n_breaches < 10:
+        st.warning(
+            "Fewer than ten observed breaches: estimated serial "
+            "correlations and transition frequencies are highly "
+            "unstable and should not be treated as strong evidence "
+            "for or against independence."
+        )
+
+    if not np.isfinite(bt_lag_one):
+        st.info(
+            "Breach autocorrelation is undefined for a constant "
+            "breach sequence, not evidence of zero dependence."
+        )
+
+    st.caption(
+        "Autocorrelations, transition counts, and variance inflation "
+        "are descriptive estimates. They do not provide "
+        "dependence-adjusted p-values, formal independence tests, "
+        "or a validated effective sample size. The exact binomial "
+        "coverage test above still assumes independent breaches. "
+        "Overlapping forecast horizons require separate treatment."
+    )
+
+    st.markdown("#### Christoffersen conditional-coverage tests")
+
+    bt_christoffersen = christoffersen_coverage_test(
+        bt_result.breaches,
+        nominal_probability=bt_probability,
+    )
+
+    bt_lr_uc, bt_lr_ind, bt_lr_cc = st.columns(3)
+
+    bt_lr_uc.metric(
+        "LRuc p-value (asymptotic)",
+        f"{bt_christoffersen.p_unconditional:.4g}",
+    )
+
+    bt_lr_ind.metric(
+        "LRind p-value (asymptotic)",
+        (
+            f"{bt_christoffersen.p_independence:.4g}"
+            if bt_christoffersen.p_independence is not None
+            else "Unavailable"
+        ),
+    )
+
+    bt_lr_cc.metric(
+        "LRcc p-value (asymptotic)",
+        (
+            f"{bt_christoffersen.p_conditional:.4g}"
+            if bt_christoffersen.p_conditional is not None
+            else "Unavailable"
+        ),
+    )
+
+    st.dataframe(
+        {
+            "Test": [
+                "Unconditional coverage (LRuc)",
+                "First-order independence (LRind)",
+                "Conditional coverage (LRcc)",
+            ],
+            "LR statistic": [
+                bt_christoffersen.lr_unconditional,
+                bt_christoffersen.lr_independence,
+                bt_christoffersen.lr_conditional,
+            ],
+            "Asymptotic p-value": [
+                bt_christoffersen.p_unconditional,
+                bt_christoffersen.p_independence,
+                bt_christoffersen.p_conditional,
+            ],
+            "Reference degrees of freedom": [1, 1, 2],
+        },
+        hide_index=True,
+        width="stretch",
+    )
+
+    if bt_christoffersen.sparse_transitions:
+        st.warning(
+            "Sparse breach-transition cells detected. "
+            "Christoffersen chi-square p-values may be unreliable "
+            "in this sample; treat them as exploratory diagnostics."
+        )
+
+    if not bt_christoffersen.independence_identifiable:
+        st.info(
+            "First-order independence and conditional coverage "
+            "cannot be estimated because at least one preceding "
+            "breach state has no observed transitions."
+        )
+
+    st.caption(
+        "Christoffersen LRuc uses all observations; LRind uses "
+        "consecutive transitions. LRcc combines their likelihood-"
+        "ratio statistics. P-values are asymptotic, not exact, "
+        "and assume an appropriate first-order Markov framework. "
+        "Failure to reject does not establish calibration or "
+        "independence. Overlapping forecast horizons and "
+        "small breach counts require additional validation."
+    )
+
+    st.caption(
+        "Rolling windows count observations, not calendar periods. "
+        "The exact binomial p-value assumes independent Bernoulli "
+        "breaches with the specified nominal probability. "
+        "Overlapping forecast horizons, serial dependence, and "
+        "cross-factor dependence require separate diagnostics. "
+        "This demonstration uses synthetic Gaussian predictive "
+        "distributions and does not establish real-world calibration."
+    )
+
 
 st.divider()
 st.caption(

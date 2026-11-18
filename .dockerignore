@@ -1,0 +1,54 @@
+# Git metadata and repository tooling
+.git
+.github
+.gitattributes
+.gitignore
+.pre-commit-config.yaml
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Tests, local examples and development output
+tests/
+examples/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+
+# IDE, OS and notebook artifacts
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.ipynb
+
+# Deployment and local runtime artifacts
+docker-compose*.yml
+docker-compose*.yaml
+compose*.yml
+compose*.yaml
+*.log
