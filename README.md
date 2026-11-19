@@ -89,8 +89,8 @@ The API health endpoint has returned HTTP 200 in a local test, dashboard support
 - Correlation-only shocks may change finite-sample Monte Carlo estimates without changing true marginal FX-forward exposure or standalone XVA in the current constant-rate setup.
 - Joint Hull-White/FX short-rate paths do not currently drive FX drift, discounting, or FX-forward repricing.
 - Funding adjustments use simplified deterministic spreads.
-- CVA, DVA, and FVA are aggregated additively, not through a first-to-default-coupled bilateral valuation.
-- Full collateral, wrong-way risk, and funding/default feedback are not modeled.
+- The engine supports additive bilateral XVA and a separate first-to-default bilateral valuation under its implemented credit-model assumptions.
+- Collateral is modeled through simplified bilateral variation margin, frozen collateral during MPOR, and segregated initial margin; full legal CSA mechanics, wrong-way risk, and funding/default feedback are not modeled.
 
 ## Repository layout
 
@@ -103,3 +103,71 @@ The API health endpoint has returned HTTP 200 in a local test, dashboard support
 - `pyproject.toml`: package and tool configuration
 
 A successful wheel build or local health check does not establish successful container deployment, remote CI execution, or production readiness.
+
+## Collateral-aware exposure and XVA
+
+PyCCR includes an illustrative collateral-aware counterparty
+credit risk workflow connecting bilateral variation margin (VM),
+margin period of risk (MPOR), segregated initial margin (IM),
+exposure profiles, and XVA calculations.
+
+### Collateral and closeout conventions
+
+- **Bilateral VM:** A simplified CSA supports counterparty and
+  own thresholds, minimum transfer amount, margin-call frequency,
+  settlement lag, and an initial VM balance. Positive VM means
+  collateral held; negative VM means collateral posted.
+  Unsettled transfers are not effective collateral.
+- **MPOR:** Settled VM is frozen at hypothetical default, while
+  the portfolio is valued at the later closeout time. Exposure
+  is assigned to the default-time grid.
+- **Segregated IM:** Received IM reduces positive residual
+  exposure; posted IM reduces negative residual exposure.
+  IM is not netted into VM.
+- **Exposure profiles:** Collateral-adjusted pathwise exposure
+  produces EE, ENE, PFE, and EPE.
+- **XVA:** Collateral-adjusted exposures feed unilateral CVA,
+  DVA, additive bilateral XVA, and a separate first-to-default
+  bilateral XVA calculation.
+
+### Reproducible end-to-end example
+
+From the repository root, install PyCCR and run:
+
+```bash
+python -m pip install -e .
+python examples/collateral_xva_end_to_end.py
+```
+
+The example uses three deterministic portfolio-value paths,
+a simplified bilateral CSA, one MPOR time step, and fixed
+received and posted IM. It reports EE, ENE, 95% PFE, CVA,
+DVA, bilateral net XVA, and first-to-default net XVA.
+
+To run its integration tests:
+
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest -q tests/test_collateral_xva_end_to_end.py
+```
+
+### Modeling scope and limitations
+
+This is an integration demonstration, not a calibrated market
+simulation or production-ready legal CSA implementation.
+VM, IM, and MPOR use discrete simulation steps and simplified
+closeout conventions. The example uses fixed IM rather than
+a regulatory SIMM calculation.
+
+**Time-grid limitation:** With positive `mpor_steps`, the final
+hypothetical default time precedes simulation maturity because
+a later closeout value is required. XVA discount factors must
+align exactly with the default-time grid. Portfolio values
+are not extrapolated beyond the simulated horizon.
+
+The collateral-aware XVA adapter uses existing hazard-curve
+and recovery-rate assumptions. First-to-default XVA is a
+separate modeled alternative to additive bilateral XVA, not
+a complete model of correlated counterparty and own defaults.
+Wrong-way risk, full CSA legal mechanics, and funding/default
+feedback remain outside this workflow.
