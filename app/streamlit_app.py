@@ -1,5 +1,7 @@
 """Interactive Streamlit dashboard for illustrative PyCCR analytics."""
 
+from typing import Literal
+
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
@@ -12,6 +14,9 @@ from app.backtesting_charts import (
     breach_timeline_chart,
     rolling_coverage_chart,
 )
+from app.dashboard_theme import CHART_COLORS, apply_dashboard_theme, style_figure
+from app.exposure_explorer import render_exposure_explorer
+from app.portfolio_contribution import render_portfolio_contributions
 from app.term_structure_charts import (
     discount_factor_chart,
     forward_curve_chart,
@@ -37,6 +42,8 @@ st.set_page_config(
     layout="wide",
 )
 
+apply_dashboard_theme()
+
 
 @st.cache_data(show_spinner=False)
 def calculate_scenario(config: DashboardScenarioConfig):
@@ -49,9 +56,9 @@ def exposure_chart(result):
     fig = go.Figure()
 
     for name, values, color in (
-        ("EE", result.exposures.ee, "#2563eb"),
-        ("ENE", result.exposures.ene, "#e8794a"),
-        ("PFE", result.exposures.pfe, "#8b5cf6"),
+        ("EE", result.exposures.ee, CHART_COLORS["ee"]),
+        ("ENE", result.exposures.ene, CHART_COLORS["ene"]),
+        ("PFE", result.exposures.pfe, CHART_COLORS["pfe"]),
     ):
         fig.add_trace(
             go.Scatter(
@@ -59,20 +66,26 @@ def exposure_chart(result):
                 y=values,
                 mode="lines",
                 name=name,
-                line={"color": color, "width": 2.5},
+                line={"color": color, "width": 2.8},
+                hovertemplate=(
+                    "Time: %{x:.2f} years"
+                    "<br>Exposure: %{y:,.2f} EUR"
+                    "<extra>%{fullData.name}</extra>"
+                ),
             )
         )
 
     fig.update_layout(
-        title="Expected exposure and potential future exposure",
         xaxis_title="Time (years)",
         yaxis_title="Exposure (EUR)",
-        hovermode="x unified",
-        template="plotly_white",
-        height=430,
-        legend={"orientation": "h", "y": 1.12},
+        yaxis_tickformat=",.0f",
     )
-    return fig
+
+    return style_figure(
+        fig,
+        title="Expected exposure and potential future exposure",
+        height=430,
+    )
 
 
 def trade_chart(result):
@@ -80,30 +93,60 @@ def trade_chart(result):
     fig = go.Figure()
 
     series = (
-        ("Receiver IRS", result.trade_values[0].mean(axis=0)),
-        ("Payer swaption", result.trade_values[1].mean(axis=0)),
-        ("Combined portfolio", result.portfolio_values.mean(axis=0)),
+        (
+            "Receiver IRS",
+            result.trade_values[0].mean(axis=0),
+            CHART_COLORS["ee"],
+            2.3,
+        ),
+        (
+            "Payer swaption",
+            result.trade_values[1].mean(axis=0),
+            CHART_COLORS["pfe"],
+            2.3,
+        ),
+        (
+            "Combined portfolio",
+            result.portfolio_values.mean(axis=0),
+            CHART_COLORS["xva"],
+            3.5,
+        ),
     )
 
-    for name, values in series:
+    for name, values, color, width in series:
         fig.add_trace(
             go.Scatter(
                 x=result.times,
                 y=values,
                 mode="lines",
                 name=name,
+                line={"color": color, "width": width},
+                hovertemplate=(
+                    "Time: %{x:.2f} years"
+                    "<br>Expected MTM: %{y:,.2f} EUR"
+                    "<extra>%{fullData.name}</extra>"
+                ),
             )
         )
 
+    fig.add_hline(
+        y=0.0,
+        line_width=1,
+        line_dash="dash",
+        line_color="#94A3B8",
+    )
+
     fig.update_layout(
-        title="Expected signed mark-to-market",
         xaxis_title="Time (years)",
         yaxis_title="Expected MTM (EUR)",
-        hovermode="x unified",
-        template="plotly_white",
-        height=410,
+        yaxis_tickformat=",.0f",
     )
-    return fig
+
+    return style_figure(
+        fig,
+        title="Expected signed mark-to-market",
+        height=430,
+    )
 
 
 def xva_chart(result):
@@ -113,26 +156,43 @@ def xva_chart(result):
 
     fig = go.Figure()
 
-    for label, values in (
-        ("Standalone", (standalone.cva, standalone.dva, standalone.net_xva)),
-        ("First-to-default", (first.cva, first.dva, first.net_xva)),
+    for label, values, color in (
+        (
+            "Standalone",
+            (standalone.cva, standalone.dva, standalone.net_xva),
+            CHART_COLORS["pfe"],
+        ),
+        (
+            "First-to-default",
+            (first.cva, first.dva, first.net_xva),
+            CHART_COLORS["xva"],
+        ),
     ):
         fig.add_trace(
             go.Bar(
                 name=label,
                 x=["CVA", "DVA", "Net XVA"],
                 y=values,
+                marker_color=color,
+                hovertemplate=(
+                    "%{x}<br>Adjustment: %{y:,.2f} EUR<extra>%{fullData.name}</extra>"
+                ),
             )
         )
 
     fig.update_layout(
-        title="Standalone vs first-to-default adjustments",
         barmode="group",
-        yaxis_title="EUR",
-        template="plotly_white",
+        yaxis_title="Adjustment (EUR)",
+        yaxis_tickformat=",.0f",
+        bargap=0.24,
+        bargroupgap=0.08,
+    )
+
+    return style_figure(
+        fig,
+        title="Standalone vs first-to-default adjustments",
         height=400,
     )
-    return fig
 
 
 def sensitivity_chart(result, metric):
@@ -162,27 +222,60 @@ def sensitivity_chart(result, metric):
             y=sensitivity.own_spreads_bps,
             z=matrix,
             colorbar={"title": "EUR"},
+            hovertemplate=(
+                "Counterparty CDS: %{x:.0f} bps"
+                "<br>Own CDS: %{y:.0f} bps"
+                "<br>Adjustment: %{z:,.2f} EUR"
+                "<extra></extra>"
+            ),
             **color_settings,
         )
     )
 
     fig.update_layout(
-        title=metric.replace("_", " ").title(),
         xaxis_title="Counterparty CDS spread (bps)",
         yaxis_title="Own CDS spread (bps)",
-        template="plotly_white",
+    )
+
+    return style_figure(
+        fig,
+        title=metric.replace("_", " ").title(),
         height=480,
     )
-    return fig
 
 
-st.title("PyCCR")
-st.caption("Multi-Asset Counterparty Credit Risk & XVA Engine")
+# Dashboard identity and scenario context.
+header_left, header_right = st.columns([4, 1])
+
+with header_left:
+    st.title("PyCCR")
+    st.caption("Counterparty Credit Risk & XVA Analytics")
+
+with header_right:
+    st.caption("MODEL STATUS")
+    st.markdown("**Illustrative scenario**")
+
+st.divider()
+
+portfolio_col, model_col, horizon_col = st.columns(3)
+
+with portfolio_col:
+    st.caption("PORTFOLIO")
+    st.markdown("**EUR receiver IRS + payer swaption**")
+
+with model_col:
+    st.caption("MODEL")
+    st.markdown("**Hull–White one-factor**")
+
+with horizon_col:
+    st.caption("SIMULATION HORIZON")
+    st.markdown("**3 years**")
 
 st.info(
     "Illustrative EUR receiver IRS + payer swaption portfolio. "
-    "Signed aggregation is not legal netting. "
-    "The model excludes collateral, wrong-way risk, and correlated defaults."
+    "Signed trade aggregation does not establish legally enforceable netting. "
+    "This dashboard scenario excludes collateral, wrong-way risk, "
+    "and correlated defaults."
 )
 
 with st.sidebar:
@@ -332,12 +425,18 @@ with exposure_tab:
         "PFE is a cross-sectional Monte Carlo percentile."
     )
 
+    st.divider()
+    render_exposure_explorer(result, config)
+
 with portfolio_tab:
     st.plotly_chart(trade_chart(result), width="stretch")
     st.write(
         f"Receiver IRS fixed rate: **{result.swap_fixed_rate:.4%}**"
         f"  |  Payer swaption strike: **{result.swaption_fixed_rate:.4%}**"
     )
+
+    st.divider()
+    render_portfolio_contributions(result)
 
 with xva_tab:
     st.plotly_chart(xva_chart(result), width="stretch")
@@ -534,13 +633,30 @@ with backtesting_tab:
     bt_z = norm.ppf(bt_quantile if bt_tail == "upper" else bt_probability)
     bt_forecasts = bt_center + bt_sigma * bt_z
 
+    # Validate UI selections before passing them to the typed engine API.
+    if bt_tail not in ("upper", "lower"):
+        raise ValueError(f"Unsupported backtesting tail: {bt_tail}")
+    if bt_alternative not in ("greater", "less", "two-sided"):
+        raise ValueError(f"Unsupported binomial alternative: {bt_alternative}")
+
+    coverage_tail: Literal["upper", "lower"] = (
+        "upper" if bt_tail == "upper" else "lower"
+    )
+    coverage_alternative: Literal["greater", "less", "two-sided"]
+    if bt_alternative == "greater":
+        coverage_alternative = "greater"
+    elif bt_alternative == "less":
+        coverage_alternative = "less"
+    else:
+        coverage_alternative = "two-sided"
+
     bt_result = test_coverage(
         bt_realized,
         bt_forecasts,
-        tail=bt_tail,
+        tail=coverage_tail,
         nominal_probability=bt_probability,
         significance_level=0.05,
-        alternative=bt_alternative,
+        alternative=coverage_alternative,
     )
 
     st.markdown("#### Bootstrap uncertainty")
