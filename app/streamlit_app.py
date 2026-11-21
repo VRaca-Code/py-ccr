@@ -22,7 +22,10 @@ from app.backtesting_charts import (
     rolling_coverage_chart,
 )
 from app.dashboard_theme import CHART_COLORS, apply_dashboard_theme, style_figure
+from app.correlation_distribution_lab import render_correlation_distribution_lab
 from app.exposure_explorer import render_exposure_explorer
+from app.exposure_fan_chart import exposure_fan_chart
+from app.monte_carlo_convergence_chart import monte_carlo_convergence_chart
 from app.portfolio_contribution import render_portfolio_contributions
 from app.term_structure_charts import (
     discount_factor_chart,
@@ -427,6 +430,38 @@ m4.metric(
 
 with exposure_tab:
     st.plotly_chart(exposure_chart(result), width="stretch")
+
+    st.subheader("Exposure percentile fan")
+    st.caption("Pathwise positive exposure: expected exposure and percentile bands.")
+    st.plotly_chart(exposure_fan_chart(result), width="stretch")
+
+    st.subheader("Monte Carlo convergence")
+    st.caption(
+        "Running expected positive exposure using complete "
+        "antithetic path pairs, with approximate 95% "
+        "Student-t confidence intervals."
+    )
+
+    convergence_time_index = st.select_slider(
+        "Convergence time horizon (years)",
+        options=list(range(len(result.times))),
+        value=int(
+            min(
+                range(len(result.times)),
+                key=lambda i: abs(result.times[i] - 1.0),
+            )
+        ),
+        format_func=lambda i: f"{result.times[i]:.2f}",
+        key="mc_convergence_time_index",
+    )
+
+    st.plotly_chart(
+        monte_carlo_convergence_chart(
+            result,
+            convergence_time_index,
+        ),
+        width="stretch",
+    )
     st.caption(
         "ENE is shown as a positive exposure magnitude. "
         "PFE is a cross-sectional Monte Carlo percentile."
@@ -564,6 +599,9 @@ with hull_white_tab:
         "Carlo paths, exposure, and XVA above continue to use the "
         "submitted sidebar scenario."
     )
+
+    st.divider()
+    render_correlation_distribution_lab(config, monitoring_curve)
 
 
 with backtesting_tab:

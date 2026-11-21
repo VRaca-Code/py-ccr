@@ -37,7 +37,12 @@ def charts():
     module = ast.Module(body=functions, type_ignores=[])
     ast.fix_missing_locations(module)
 
-    namespace = {"go": go}
+    from app.dashboard_theme import CHART_COLORS, style_figure
+    namespace = {
+        "go": go,
+        "CHART_COLORS": CHART_COLORS,
+        "style_figure": style_figure,
+    }
     # Only four allowlisted chart functions are compiled; the Streamlit UI is not run.
     exec(compile(module, str(APP_PATH), "exec"), namespace)  # noqa: S102
 
