@@ -12,11 +12,11 @@ import streamlit as st
 from app.correlation_distribution_lab import (
     render_correlation_distribution_lab,
 )
-from app.hull_white_calibration_monitor import (
-    calculate_hull_white_calibration_monitor,
-)
 from app.fx_black_calibration_monitor import (
     calculate_fx_black_calibration_monitor,
+)
+from app.hull_white_calibration_monitor import (
+    calculate_hull_white_calibration_monitor,
 )
 
 
@@ -32,9 +32,7 @@ def render_hybrid_lgm_fx_monitor(config, curve):
         "Gaussian shocks driving both factors."
     )
 
-    hw_result, hw_diagnostics, hw_rmse = (
-        calculate_hull_white_calibration_monitor()
-    )
+    hw_result, _hw_diagnostics, hw_rmse = calculate_hull_white_calibration_monitor()
 
     fx_result = calculate_fx_black_calibration_monitor()
 

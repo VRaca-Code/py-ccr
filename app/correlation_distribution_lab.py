@@ -115,7 +115,7 @@ def correlation_heatmap(matrix, title, *, zmin=-1.0, zmax=1.0):
     figure.update_layout(
         title=title,
         height=330,
-        margin=dict(l=25, r=25, t=55, b=25),
+        margin={"l": 25, "r": 25, "t": 55, "b": 25},
     )
 
     return figure
@@ -138,7 +138,7 @@ def marginal_histogram(values, title, axis_label):
         xaxis_title=axis_label,
         yaxis_title="Path count",
         height=350,
-        margin=dict(l=25, r=25, t=55, b=40),
+        margin={"l": 25, "r": 25, "t": 55, "b": 40},
         bargap=0.05,
     )
 
@@ -153,11 +153,11 @@ def joint_distribution_chart(fx, rates):
             x=fx,
             y=100.0 * rates,
             mode="markers",
-            marker=dict(
-                size=4,
-                opacity=0.35,
-                color="#48A6C9",
-            ),
+            marker={
+                "size": 4,
+                "opacity": 0.35,
+                "color": "#48A6C9",
+            },
             name="Simulated paths",
         )
     )
@@ -167,7 +167,7 @@ def joint_distribution_chart(fx, rates):
         xaxis_title="FX spot (domestic currency per foreign unit)",
         yaxis_title="Hull–White short rate (%)",
         height=430,
-        margin=dict(l=25, r=25, t=55, b=45),
+        margin={"l": 25, "r": 25, "t": 55, "b": 45},
     )
 
     return figure
@@ -242,12 +242,7 @@ def render_correlation_distribution_lab(config, curve):
         )
 
         reconstruction_error = float(
-            np.max(
-                np.abs(
-                    diagnostics["reconstructed"]
-                    - diagnostics["target"]
-                )
-            )
+            np.max(np.abs(diagnostics["reconstructed"] - diagnostics["target"]))
         )
 
         st.metric(

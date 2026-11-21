@@ -34,8 +34,7 @@ def calculate_hull_white_calibration_monitor():
 
     curve = SmoothDiscountCurve(
         tenors=(0.0, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0),
-        zero_rates=(0.025, 0.027, 0.029, 0.030, 0.032,
-                    0.034, 0.035, 0.036),
+        zero_rates=(0.025, 0.027, 0.029, 0.030, 0.032, 0.034, 0.035, 0.036),
     )
 
     expiries = (1.0, 2.0, 3.0, 5.0)
@@ -55,9 +54,7 @@ def calculate_hull_white_calibration_monitor():
 
     for i, expiry in enumerate(expiries):
         for j, tenor in enumerate(tenors):
-            payment_times = tuple(
-                expiry + year for year in range(1, tenor + 1)
-            )
+            payment_times = tuple(expiry + year for year in range(1, tenor + 1))
 
             discounts = np.asarray(
                 curve.discount_factor(payment_times),
@@ -88,17 +85,13 @@ def calculate_hull_white_calibration_monitor():
     )
 
     if not result.success:
-        raise RuntimeError(
-            f"Hull-White calibration failed: {result.message}"
-        )
+        raise RuntimeError(f"Hull-White calibration failed: {result.message}")
 
     records = []
 
     for quote in quotes:
         times = np.asarray(quote.payment_times, dtype=float)
-        accruals = np.diff(
-            np.concatenate(([quote.expiry], times))
-        )
+        accruals = np.diff(np.concatenate(([quote.expiry], times)))
 
         discounts = np.asarray(
             curve.discount_factor(times),
@@ -111,9 +104,7 @@ def calculate_hull_white_calibration_monitor():
             - float(curve.discount_factor(times[-1]))
         ) / annuity
 
-        strike = (
-            forward if quote.strike is None else quote.strike
-        )
+        strike = forward if quote.strike is None else quote.strike
 
         market_price = bachelier_swaption_price(
             forward=forward,
@@ -151,20 +142,14 @@ def calculate_hull_white_calibration_monitor():
                 "Market vol (bp)": market_bp,
                 "HW implied vol (bp)": model_bp,
                 "Vol error (bp)": model_bp - market_bp,
-                "Normalized price error": (
-                    model_price - market_price
-                ) / annuity,
+                "Normalized price error": (model_price - market_price) / annuity,
             }
         )
 
     diagnostics = pd.DataFrame(records)
 
     normal_vol_rmse_bp = float(
-        np.sqrt(
-            np.mean(
-                diagnostics["Vol error (bp)"].to_numpy() ** 2
-            )
-        )
+        np.sqrt(np.mean(diagnostics["Vol error (bp)"].to_numpy() ** 2))
     )
 
     return result, diagnostics, normal_vol_rmse_bp
@@ -181,9 +166,7 @@ def render_hull_white_calibration_monitor():
         "Uses the unchanged production calibration procedure."
     )
 
-    result, diagnostics, normal_vol_rmse_bp = (
-        calculate_hull_white_calibration_monitor()
-    )
+    result, diagnostics, normal_vol_rmse_bp = calculate_hull_white_calibration_monitor()
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -265,7 +248,7 @@ def render_hull_white_calibration_monitor():
             y=heatmap_data.index,
             colorscale="RdBu",
             zmid=0,
-            colorbar=dict(title="Error (bp)"),
+            colorbar={"title": "Error (bp)"},
         )
     )
     heatmap.update_layout(

@@ -1,11 +1,10 @@
-
 """Monte Carlo convergence visualization for PyCCR."""
 
 import numpy as np
 import plotly.graph_objects as go
 
-from pyccr.convergence.mean import monte_carlo_mean_interval
 from app.dashboard_theme import style_figure
+from pyccr.convergence.mean import monte_carlo_mean_interval
 
 
 def calculate_mc_convergence(result, time_index):
@@ -23,8 +22,7 @@ def calculate_mc_convergence(result, time_index):
 
     if n_paths < 4 or n_paths % 2:
         raise ValueError(
-            "Antithetic convergence requires an even "
-            "number of paths, at least four"
+            "Antithetic convergence requires an even number of paths, at least four"
         )
 
     if not isinstance(time_index, (int, np.integer)):
@@ -45,9 +43,7 @@ def calculate_mc_convergence(result, time_index):
 
     # PyCCR's antithetic ordering:
     # [Z_1, ..., Z_m, -Z_1, ..., -Z_m]
-    pair_means = 0.5 * (
-        exposure[:half] + exposure[half:]
-    )
+    pair_means = 0.5 * (exposure[:half] + exposure[half:])
 
     # At least two complete pairs are required
     # for sample-variance estimation.
@@ -58,10 +54,12 @@ def calculate_mc_convergence(result, time_index):
     upper = np.empty(len(checkpoints))
 
     for index, count in enumerate(checkpoints):
-        observations = np.concatenate((
-            exposure[:count],
-            exposure[half:half + count],
-        ))
+        observations = np.concatenate(
+            (
+                exposure[:count],
+                exposure[half : half + count],
+            )
+        )
 
         interval = monte_carlo_mean_interval(
             observations,
@@ -93,33 +91,39 @@ def monte_carlo_convergence_chart(result, time_index):
     x = data["n_paths"]
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=data["upper_95"],
-        mode="lines",
-        line=dict(width=0),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=data["upper_95"],
+            mode="lines",
+            line={"width": 0},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=data["lower_95"],
-        mode="lines",
-        fill="tonexty",
-        fillcolor="rgba(59, 130, 246, 0.18)",
-        line=dict(width=0),
-        name="Approx. 95% confidence interval",
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=data["lower_95"],
+            mode="lines",
+            fill="tonexty",
+            fillcolor="rgba(59, 130, 246, 0.18)",
+            line={"width": 0},
+            name="Approx. 95% confidence interval",
+            hoverinfo="skip",
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=data["running_ee"],
-        mode="lines",
-        name="Running expected exposure",
-        line=dict(color="#38BDF8", width=3),
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=data["running_ee"],
+            mode="lines",
+            name="Running expected exposure",
+            line={"color": "#38BDF8", "width": 3},
+        )
+    )
 
     fig.add_hline(
         y=data["reference_ee"],
@@ -130,10 +134,7 @@ def monte_carlo_convergence_chart(result, time_index):
     )
 
     fig.update_layout(
-        title=(
-            "Monte Carlo convergence at "
-            f"{data['selected_time']:.2f} years"
-        ),
+        title=(f"Monte Carlo convergence at {data['selected_time']:.2f} years"),
         xaxis_title="Number of simulated paths (complete pairs)",
         yaxis_title="Expected positive exposure (EUR)",
         hovermode="x unified",

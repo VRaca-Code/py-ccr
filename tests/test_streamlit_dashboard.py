@@ -38,6 +38,7 @@ def charts():
     ast.fix_missing_locations(module)
 
     from app.dashboard_theme import CHART_COLORS, style_figure
+
     namespace = {
         "go": go,
         "CHART_COLORS": CHART_COLORS,

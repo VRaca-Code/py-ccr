@@ -17,13 +17,13 @@ import streamlit as st
 
 from pyccr.market.curve_set import CurveSet
 from pyccr.market.discount_curve import DiscountCurve
-from pyccr.market.fx_smile_quotes import FXSmileQuotes
 from pyccr.market.fx_smile_interpolation import (
     fx_25delta_smile_surface,
 )
+from pyccr.market.fx_smile_quotes import FXSmileQuotes
 from pyccr.pricing.fx_forward import FXForward
-from pyccr.pricing.fx_option import FXOption
 from pyccr.pricing.fx_implied_vol import implied_volatility
+from pyccr.pricing.fx_option import FXOption
 from pyccr.pricing.fx_smile_option import (
     price_fx_option_with_smile,
 )
@@ -83,9 +83,7 @@ def calculate_fx_black_calibration_monitor():
         surface.strikes,
         surface.volatilities[0],
     ):
-        option_type = (
-            "put" if label == "25Δ put" else "call"
-        )
+        option_type = "put" if label == "25Δ put" else "call"
 
         option = FXOption(
             domestic_currency=domestic_currency,
@@ -116,26 +114,20 @@ def calculate_fx_black_calibration_monitor():
             smile_price,
         )
 
-        rows.append({
-            "Node": label,
-            "Option type": option_type,
-            "Strike": float(strike),
-            "Quoted volatility": float(quoted_vol),
-            "Surface volatility": float(
-                surface.volatility(maturity, strike)
-            ),
-            "Direct Black price": float(direct_price),
-            "Smile Black price": float(smile_price),
-            "Recovered implied volatility": float(
-                recovered_vol
-            ),
-            "Price difference": float(
-                smile_price - direct_price
-            ),
-            "Volatility difference": float(
-                recovered_vol - quoted_vol
-            ),
-        })
+        rows.append(
+            {
+                "Node": label,
+                "Option type": option_type,
+                "Strike": float(strike),
+                "Quoted volatility": float(quoted_vol),
+                "Surface volatility": float(surface.volatility(maturity, strike)),
+                "Direct Black price": float(direct_price),
+                "Smile Black price": float(smile_price),
+                "Recovered implied volatility": float(recovered_vol),
+                "Price difference": float(smile_price - direct_price),
+                "Volatility difference": float(recovered_vol - quoted_vol),
+            }
+        )
 
     table = pd.DataFrame(rows)
 
@@ -145,10 +137,9 @@ def calculate_fx_black_calibration_monitor():
         151,
     )
 
-    smile_vols = np.array([
-        surface.volatility(maturity, float(strike))
-        for strike in strikes
-    ])
+    smile_vols = np.array(
+        [surface.volatility(maturity, float(strike)) for strike in strikes]
+    )
 
     assert len(table) == 3
     assert np.all(np.isfinite(smile_vols))
@@ -161,13 +152,9 @@ def calculate_fx_black_calibration_monitor():
         rtol=0,
     )
 
-    assert np.max(
-        np.abs(table["Price difference"])
-    ) < 1e-10
+    assert np.max(np.abs(table["Price difference"])) < 1e-10
 
-    assert np.max(
-        np.abs(table["Volatility difference"])
-    ) < 1e-9
+    assert np.max(np.abs(table["Volatility difference"])) < 1e-9
 
     return {
         "spot": spot,
@@ -178,13 +165,9 @@ def calculate_fx_black_calibration_monitor():
         "table": table,
         "strikes": strikes,
         "smile_vols": smile_vols,
-        "max_price_error": float(
-            np.max(np.abs(table["Price difference"]))
-        ),
+        "max_price_error": float(np.max(np.abs(table["Price difference"]))),
         "max_vol_error_bp": float(
-            10000 * np.max(
-                np.abs(table["Volatility difference"])
-            )
+            10000 * np.max(np.abs(table["Volatility difference"]))
         ),
     }
 
@@ -269,11 +252,13 @@ def render_fx_black_calibration_monitor():
     ]:
         display[column] = 100 * display[column]
 
-    display = display.rename(columns={
-        "Quoted volatility": "Quoted vol (%)",
-        "Surface volatility": "Surface vol (%)",
-        "Recovered implied volatility": "Recovered vol (%)",
-    })
+    display = display.rename(
+        columns={
+            "Quoted volatility": "Quoted vol (%)",
+            "Surface volatility": "Surface vol (%)",
+            "Recovered implied volatility": "Recovered vol (%)",
+        }
+    )
 
     st.dataframe(
         display,

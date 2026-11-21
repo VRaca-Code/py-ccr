@@ -1,5 +1,18 @@
 # PyCCR
 
+
+## Quantitative methodology and implementation
+
+For a detailed, code-aligned explanation of the mathematical models,
+numerical algorithms, calibration process, Monte Carlo simulation,
+collateral treatment, and XVA calculations, see:
+
+- [Hull–White / LGM calibration — detailed technical walkthrough](docs/hull_white_calibration.md)
+- [Monte Carlo exposure simulation and XVA — detailed technical walkthrough](docs/exposure_xva_simulation.md)
+
+These chapters distinguish implemented research functionality from
+modelling assumptions and potential future extensions.
+
 PyCCR is a Python research project for multi-asset counterparty credit risk, exposure simulation, XVA, model validation, and interactive risk analytics.
 
 **Status:** Research-oriented MVP. Not a certified regulatory capital engine or production risk-management system.

@@ -1,10 +1,9 @@
-
 """Exposure percentile fan chart for the PyCCR dashboard."""
 
 import numpy as np
 import plotly.graph_objects as go
 
-from app.dashboard_theme import CHART_COLORS, style_figure
+from app.dashboard_theme import style_figure
 
 
 def calculate_exposure_fan(result):
@@ -51,46 +50,54 @@ def exposure_fan_chart(result):
     fig = go.Figure()
 
     # Outer 25th–99th percentile band.
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=data["p99"],
-        mode="lines",
-        line=dict(width=0),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=data["p99"],
+            mode="lines",
+            line={"width": 0},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=data["p25"],
-        mode="lines",
-        fill="tonexty",
-        fillcolor="rgba(59, 130, 246, 0.12)",
-        line=dict(width=0),
-        name="P25–P99 band",
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=data["p25"],
+            mode="lines",
+            fill="tonexty",
+            fillcolor="rgba(59, 130, 246, 0.12)",
+            line={"width": 0},
+            name="P25–P99 band",
+            hoverinfo="skip",
+        )
+    )
 
     # Inner 50th–95th percentile band.
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=data["p95"],
-        mode="lines",
-        line=dict(width=0),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=data["p95"],
+            mode="lines",
+            line={"width": 0},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=data["p50"],
-        mode="lines",
-        fill="tonexty",
-        fillcolor="rgba(59, 130, 246, 0.24)",
-        line=dict(width=0),
-        name="P50–P95 band",
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=data["p50"],
+            mode="lines",
+            fill="tonexty",
+            fillcolor="rgba(59, 130, 246, 0.24)",
+            line={"width": 0},
+            name="P50–P95 band",
+            hoverinfo="skip",
+        )
+    )
 
     # Quantile curves.
     for key, label, color, dash in [
@@ -99,28 +106,32 @@ def exposure_fan_chart(result):
         ("p95", "P95", "#F59E0B", "solid"),
         ("p99", "P99", "#EF4444", "dash"),
     ]:
-        fig.add_trace(go.Scatter(
-            x=times,
-            y=data[key],
-            mode="lines",
-            name=label,
-            line=dict(color=color, width=2, dash=dash),
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=times,
+                y=data[key],
+                mode="lines",
+                name=label,
+                line={"color": color, "width": 2, "dash": dash},
+            )
+        )
 
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=data["ee"],
-        mode="lines",
-        name="Expected exposure (EE)",
-        line=dict(color="#22C55E", width=3),
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=data["ee"],
+            mode="lines",
+            name="Expected exposure (EE)",
+            line={"color": "#22C55E", "width": 3},
+        )
+    )
 
     fig.update_layout(
         title="Portfolio positive-exposure percentile fan",
         xaxis_title="Time (years)",
         yaxis_title="Positive exposure (EUR)",
         hovermode="x unified",
-        legend=dict(orientation="h", y=-0.2),
+        legend={"orientation": "h", "y": -0.2},
     )
 
     return style_figure(fig)
