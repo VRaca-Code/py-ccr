@@ -23,6 +23,7 @@ from app.backtesting_charts import (
 )
 from app.dashboard_theme import CHART_COLORS, apply_dashboard_theme, style_figure
 from app.correlation_distribution_lab import render_correlation_distribution_lab
+from app.hull_white_calibration_monitor import render_hull_white_calibration_monitor
 from app.exposure_explorer import render_exposure_explorer
 from app.exposure_fan_chart import exposure_fan_chart
 from app.monte_carlo_convergence_chart import monte_carlo_convergence_chart
@@ -45,6 +46,8 @@ from pyccr.dashboard.scenario import (
 )
 from pyccr.dashboard.term_structure import calculate_term_structure_diagnostics
 from pyccr.market.smooth_discount_curve import SmoothDiscountCurve
+from app.fx_black_calibration_monitor import render_fx_black_calibration_monitor
+from app.hybrid_lgm_fx_monitor import render_hybrid_lgm_fx_monitor
 
 st.set_page_config(
     page_title="PyCCR | Counterparty Credit Risk & XVA",
@@ -415,6 +418,8 @@ m4.metric(
     sensitivity_tab,
     curve_tab,
     hull_white_tab,
+    fx_black_tab,
+    hybrid_lgm_fx_tab,
     backtesting_tab,
 ) = st.tabs(
     [
@@ -424,6 +429,8 @@ m4.metric(
         "Credit sensitivity",
         "Yield curve & forwards",
         "Hull–White diagnostics",
+        "FX Black Calibration",
+        "Hybrid LGM–FX",
         "Backtesting & Model Validation",
     ]
 )
@@ -601,8 +608,15 @@ with hull_white_tab:
     )
 
     st.divider()
-    render_correlation_distribution_lab(config, monitoring_curve)
+    render_hull_white_calibration_monitor()
 
+
+
+with fx_black_tab:
+    render_fx_black_calibration_monitor()
+
+with hybrid_lgm_fx_tab:
+    render_hybrid_lgm_fx_monitor(config, monitoring_curve)
 
 with backtesting_tab:
     st.subheader("Backtesting & Model Validation")
