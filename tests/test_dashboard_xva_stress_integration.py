@@ -76,7 +76,7 @@ def test_dashboard_renders_stress_panel():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9
 
     labels = {metric.label for metric in app.metric}
     assert "Base additive net XVA" in labels
@@ -97,4 +97,4 @@ def test_dashboard_stress_controls_are_interactive():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9

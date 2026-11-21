@@ -48,7 +48,7 @@ def test_existing_sensitivity_chart_preserved(source):
     assert "sensitivity_chart(" in source
 
 
-def test_seven_tabs_present(source, tree):
+def test_nine_tabs_present(source, tree):
     assignments = [
         node
         for node in ast.walk(tree)
@@ -74,6 +74,8 @@ def test_seven_tabs_present(source, tree):
         "sensitivity_tab",
         "curve_tab",
         "hull_white_tab",
+        "fx_black_tab",
+        "hybrid_lgm_fx_tab",
         "backtesting_tab",
     ]
 

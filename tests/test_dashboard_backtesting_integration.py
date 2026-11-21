@@ -37,8 +37,8 @@ def test_backtesting_tab_runs_in_streamlit():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
-    assert app.tabs[6].label == "Backtesting & Model Validation"
+    assert len(app.tabs) == 9
+    assert app.tabs[8].label == "Backtesting & Model Validation"
 
     chart_elements = app.get("plotly_chart")
     assert len(chart_elements) >= 12
@@ -54,7 +54,7 @@ def test_backtesting_controls_are_interactive():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9
 
 
 def test_bootstrap_dashboard_controls_and_chart_present():
@@ -84,7 +84,7 @@ def test_bootstrap_controls_are_interactive():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9
     assert len(app.get("plotly_chart")) >= 13
 
     block_control = next(
@@ -120,7 +120,7 @@ def test_dependence_controls_are_interactive():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9
     assert len(app.get("plotly_chart")) >= 14
 
     lag_control = next(item for item in app.selectbox if item.key == "bt_max_lag")
@@ -156,7 +156,7 @@ def test_christoffersen_dashboard_runs_with_default_controls():
     app.run(timeout=90)
 
     assert not app.exception
-    assert len(app.tabs) == 7
+    assert len(app.tabs) == 9
     assert len(app.get("plotly_chart")) >= 14
 
     metric_labels = {item.label for item in app.metric}
