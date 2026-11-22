@@ -1,5 +1,12 @@
 # PyCCR
 
+## 🚀 Live Interactive Dashboard
+
+**[Launch PyCCR — Streamlit Dashboard](https://py-ccr-wnxk4br9iuvi46pw9cbgtd.streamlit.app/)**
+
+Explore interactive counterparty credit risk analytics, Monte Carlo exposure simulations, Hull–White calibration, collateral modelling, and XVA visualizations.
+
+No installation required — open the dashboard directly in your browser.
 
 ## Quantitative methodology and implementation
 
